@@ -1,0 +1,232 @@
+#!/usr/bin/env python2
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Sep  9 21:44:27 2019
+
+@author: nadia
+"""
+#%% cargo librerias
+import numpy as np
+from matplotlib import pyplot as plt
+import os #para setear directorio desde el codigo
+import pandas as pd
+from matplotlib import cm
+#%%cargo las salidas del modelo para k1, k2, k3 con la funcion cargar dentro de Cargar2.py
+ruta="/home/nadia/Documentos/materias/circulaciongeneral/practica1/Modelo_QG/" #nanu
+#ruta="/Users/macbookair/Desktop/practicasCG/practica1/modelo_QG/" #ruta CARO
+os.chdir(ruta)
+from Cargar2 import cargar 
+psi_temp_1,vort_temp_1,psiF_1,vortF_1,QG_diag_1,QG_curlw_1,X_1,Y_1,dx_1,dy_1=cargar(ruta+"out_tmp_1/",4000000,2000000,200,100)
+psi_temp_2,vort_temp_2,psiF_2,vortF_2,QG_diag_2,QG_curlw_2,X_2,Y_2,dx_2,dy_2=cargar(ruta+"out_tmp_2/",4000000,2000000,200,100)
+psi_temp_3,vort_temp_3,psiF_3,vortF_3,QG_diag_3,QG_curlw_3,X_3,Y_3,dx_3,dy_3=cargar(ruta+"out_tmp_3/",4000000,2000000,200,100)
+#%% ejercicio 1a (evolucion de energia cinetica total)
+#tomo la cuarta columna de la salida QG_diag que tiene la energia cinetica para cada paso temporal (2000 pasos) en el punto central del dominio
+plt.figure()
+plt.plot(QG_diag_1[:,0],QG_diag_1[:,3]/100000,label="K1")
+plt.plot(QG_diag_2[:,0],QG_diag_2[:,3]/100000,label="K2")
+plt.plot(QG_diag_3[:,0],QG_diag_3[:,3]/100000,label="K3")
+plt.xlabel("paso temporal")
+plt.ylabel("energia cinetica *1e5")
+plt.title("Evolucion de energia cinetica total Stommel")
+plt.legend()
+plt.savefig("ejercicio1a Stommel", dpi=100)
+#%%ejercicio 1b (campo de funcion corriente + campo de transporte meridional My en sv +AUNQUE NO LO PIDE campo de vorticidad dimensionalizado)
+
+##defino magnitudes tipicas para dimensionalizar 
+L=4000000 #longitud de la cuenca en metros
+tau=0.3 #tension del viento en superficie
+D=3000 #profundidad del oceano EN metros 
+rho=1025 #densidad
+betha=1e-11 
+U=2*np.pi*tau/(rho*D*betha*L) 
+
+##dimensionalizo funciones corriente
+psiF_1_dim=psiF_1*U*L # funcion corriente dimensionalizada (dimension m*m/s) K1
+psiF_2_dim=psiF_2*U*L # funcion corriente dimensionalizada (dimension m*m/s) K2
+psiF_3_dim=psiF_3*U*L # funcion corriente dimensionalizada (dimension m*m/s) K3
+psiF_dim=[psiF_1_dim,psiF_2_dim,psiF_3_dim]
+
+##calculo transporte meridional
+My_1=D*(np.diff(psiF_1_dim,n=1, axis=1))/1e6
+My_2=D*(np.diff(psiF_2_dim,n=1, axis=1))/1e6
+My_3=D*(np.diff(psiF_3_dim,n=1, axis=1))/1e6
+My=[My_1,My_2,My_3]
+
+##dimensionalizo vorticidad
+vortF_1_dim=vortF_1*U/L 
+vortF_2_dim=vortF_2*U/L 
+vortF_3_dim=vortF_3*U/L 
+vortF_dim=[vortF_1_dim,vortF_2_dim,vortF_3_dim]
+
+#ploteo
+
+#defino escalas:
+
+#
+
+#ploteo
+X=[X_1/1000,X_2/1000,X_3/1000]
+Y=[Y_1/1000,Y_2/1000,Y_3/1000]
+sim=["K1","K2","K3"]
+
+#funcion corriente
+levels_psi=np.arange(-36,1,2)
+for i in range(0,3):
+    plt.figure()
+    plt.contourf(X[i],Y[i],psiF_dim[i]*1e-4,levels_psi, cmap=cm.jet)
+    #plt.contourf(X[i],Y[i],psiF_dim[i]*1e-4, cmap=cm.jet)
+    plt.title("Campo de funcion corriente Stommel "+sim[i])
+    cbar=plt.colorbar()
+    #plt.contour(X[i], Y[i],psiF_dim[i], levels=0,colors="white")
+    cbar.ax.set_title("1e4 m2/s")
+    plt.xlabel("longitud (km)")
+    plt.ylabel("latitud (km)")
+    plt.savefig("Funcion corriente Stommel "+sim[i], npi=100)
+
+#vorticidad no me parece que este quedando ok. no se que mas cambiarle 
+levels_vort=np.arange(0,24,0.5)
+for i in range(0,3):
+    plt.figure()
+    #plt.contourf(X[i],Y[i],vortF_dim[i],cmap=cm.jet) #para analizar cual es la escala mas grande 
+    plt.contourf(X[i],Y[i],vortF_dim[i]*1e8,levels=levels_vort,cmap=cm.jet) #defino la escala mas arriba en funcion de lo que de el ploteo con la linea anterior descomentada
+    cbar=plt.colorbar()
+    plt.title("Campo de vorticidad Stommel "+sim[i])
+    cbar.ax.set_title("1/s 1e-8")
+    plt.xlabel("longitud (km)")
+    plt.ylabel("latitud (km)")
+    plt.contour(X[i], Y[i],vortF_dim[i], levels=0,colors="white")
+    plt.savefig("Campo de vorticidad Stommel "+sim[i], npi=100)
+
+#transporte
+levels_My=np.arange(-180,30,5)    
+for i in range(0,3):
+    plt.figure()
+    #plt.contourf(X[i][0:199],Y[i],My[i],cmap=cm.jet) #para analizar cual es la escala mas grande 
+    plt.contourf(X[i][0:199],Y[i],My[i],levels=levels_My,cmap=cm.jet) #defino la escala mas arriba en funcion de lo que de el ploteo con la linea anterior descomentada
+    cbar=plt.colorbar()
+    plt.title("Campo de transporte meridional Stommel "+sim[i])
+    cbar.ax.set_title("Sv")
+    plt.xlabel("longitud (km)")
+    plt.ylabel("latitud (km)")
+    plt.contour(X[i][0:199], Y[i],My[i], levels=0,colors="white")
+    plt.savefig("Campo de transporte meridional Stommel "+sim[i], npi=100)
+    
+#%%Ejercicio 1c (transporte meridional My [sv] en la latitud central de la cuenca vs distancia [km]+
+#vorticidad relativa [s-1] vs distancia [km])
+
+#transporte meridional 
+plt.figure()
+plt.plot(np.zeros(4000),"k")
+plt.plot(X_1[0:199]/1000,My_1[50,:], label="k1") 
+plt.plot(X_2[0:199]/1000,My_2[50,:], label="k2")
+plt.plot(X_3[0:199]/1000,My_3[50,:], label="k3")
+plt.xlabel("distancia longitudinal[km]")
+plt.ylabel("transporte meridional [sv]")
+plt.title("Transporte meridional en la latitud central de la cuenca Stommel")
+plt.legend()
+plt.savefig("1c transporte meridional latitud central Stommel ", dpi=100)
+
+#vorticidad
+
+plt.figure()
+plt.plot(np.zeros(4000),"k")
+plt.plot(X_1[0:200]/1000,vortF_1_dim[50,:]*1e7, label="k1") 
+plt.plot(X_2[0:200]/1000,vortF_2_dim[50,:]*1e7, label="k2") 
+plt.plot(X_3[0:200]/1000,vortF_3_dim[50,:]*1e7, label="k3") 
+plt.xlabel("distancia longitudinal [km]")
+plt.ylabel("vorticidad relativa [1e-7 s-1]")
+plt.title("Vorticidad relativa en la latitud central de la cuenca Stommel")
+plt.legend()
+plt.savefig("1c vorticidad relativa latitud central Stommel", dpi=100)
+    
+
+
+#%%
+#K1
+My_1_central=My_1[50,:] #latitud numero 50
+np.where(My_1_central==0) #longitud 22 donde termina el borde oeste en array (donde el transporte meridional se hace positivo)
+My_1_borde_oeste_suma=np.sum(My_1_central[0:22]) #en sv
+My_1_total_suma=np.sum(My_1_central) #en sv
+extension_borde_oeste_1=(np.sum(X_1[0:22])*20)/1000000 #en km 
+#K2
+My_2_central=My_2[50,:]
+np.where(My_2_central==0) #longitud 46 y 49 ( elijo 49 )donde termina el borde oeste en array (donde el transporte meridional se hace positivo)
+My_2_borde_oeste_suma=np.sum(My_2_central[0:49]) #en sv
+My_2_total_suma=np.sum(My_2_central) #en sv
+extension_borde_oeste_2=np.sum(X_2[0:49])*20/1000000 #en km 
+#K3
+My_3_central=My_3[50,:] #latitud numero 50
+np.where(My_3_central==0) #longitud 60,62,64,66 (elijo 66) donde termina el borde oeste en array (donde el transporte meridional se hace positivo)
+My_3_borde_oeste_suma=np.sum(My_3_central[0:66]) #en sv
+My_3_total_suma=np.sum(My_3_central) #en sv
+extension_borde_oeste_3=np.sum(X_3[0:66])*20/1000000 #en km 
+
+#acomodo informacion en tabla devuelve archivo excel
+resultados2= {' ': ["Transporte meridional borde oeste [sv]","Transporte meridional total [sv]","Extension borde oeste [Km]"],
+     "K1":[round(My_1_borde_oeste_suma,1),round(My_1_total_suma,1),round(extension_borde_oeste_1,1)],
+     'K2':[round(My_2_borde_oeste_suma,1),round(My_2_total_suma,1),round(extension_borde_oeste_2,1)],
+     "K3":[round(My_3_borde_oeste_suma,1),round(My_3_total_suma,1),round(extension_borde_oeste_3,1)]}
+resultados2 = pd.DataFrame(data=resultados2)
+resultados2.to_excel("resultados_2.xls",index=False)
+
+#%% 3 con k1
+
+
+ds=0.05
+primer_termino=((np.diff(psiF_1,n=1, axis=1)))[50,:] /ds #este es el que tuvo que tirar magia dani con ese ds que viene del .dat (gridstep)
+segundo_termino=-QG_curlw_1[51,:]
+tercer_termino=0.29*vortF_1[50,:]
+plt.figure()
+plt.plot(np.zeros(4000),"k")
+plt.axvline(x=X_1[22]/1000,linestyle="dotted") #marco longitud donde termina borde oeste
+plt.plot(X_1[0:199]/1000,primer_termino[0:199],"r", label="Primer termino")
+plt.plot(X_1[0:199]/1000,segundo_termino[0:199],"b", label="Segundo termino")
+plt.plot(X_1[0:199]/1000,tercer_termino[0:199],"g", label="Tercer termino")
+plt.title("Terminos de la ecuacion de vorticidad Stommel")
+plt.ylabel("1/s")
+plt.xlabel("Longitud (Km)")
+plt.legend()
+plt.savefig("terminos vorticidad ej 3 Stommel", dpi=100)
+
+#zoom a borde oeste
+plt.figure()
+plt.plot(np.zeros(4000),"k")
+plt.axvline(x=X_1[22]/1000,linestyle="dotted") #marco longitud donde termina borde oeste
+plt.plot(X_1[0:199]/1000,primer_termino[0:199],"r", label="Primer termino")
+plt.plot(X_1[0:199]/1000,segundo_termino[0:199],"b", label="Segundo termino")
+plt.plot(X_1[0:199]/1000,tercer_termino[0:199],"g", label="Tercer termino")
+axes = plt.gca()
+axes.set_xlim([0,X_1[22]/1000])
+plt.suptitle("Terminos de la ecuacion de vorticidad Stommel")
+plt.title("Borde oeste de cuenca")
+plt.ylabel("1/s")
+plt.xlabel("Longitud (Km)")
+plt.legend()
+plt.savefig("terminos vorticidad oeste ej 3 Stommel",dpi=100)
+
+#zoom a centro y este
+plt.figure()
+plt.plot(np.zeros(4000),"k")
+plt.axvline(x=X_1[22]/1000,linestyle="dotted") #marco longitud donde termina borde oeste
+plt.plot(X_1[0:199]/1000,primer_termino[0:199],"r", label="Primer termino")
+plt.plot(X_1[0:199]/1000,segundo_termino[0:199],"b", label="Segundo termino")
+plt.plot(X_1[0:199]/1000,tercer_termino[0:199],"g", label="Tercer termino")
+axes = plt.gca()
+axes.set_xlim([X_1[22]/1000,X_1[199]/1000])
+axes.set_ylim([-3,3])
+plt.suptitle("Terminos de la ecuacion de vorticidad Stommel K1")
+plt.title("Centro y este de cuenca")
+plt.ylabel("1/s")
+plt.xlabel("Longitud (Km)")
+plt.legend()
+plt.savefig("terminos vorticidad centro y este ej 3 Stommel", dpi=100)
+
+
+
+
+
+
+
+
+
+
